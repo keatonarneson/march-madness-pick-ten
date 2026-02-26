@@ -6,6 +6,7 @@ import Link from 'next/link';
 type Pick = {
     team_id: string;
     team_name: string;
+    conference: string | null;
     tier: string;
     wins: number;
     rank: number | null;
@@ -591,7 +592,9 @@ export default function LeaderboardPage() {
                                                                     ...ui.muted,
                                                                 }}
                                                             >
-                                                                {pick.team_id} •{' '}
+                                                                {pick.conference ??
+                                                                    '—'}{' '}
+                                                                •{' '}
                                                                 {getTierLabel(
                                                                     pick.tier,
                                                                 )}
@@ -758,7 +761,9 @@ export default function LeaderboardPage() {
                                                                     ...ui.muted,
                                                                 }}
                                                             >
-                                                                {pick.team_id} •{' '}
+                                                                {pick.conference ??
+                                                                    '—'}{' '}
+                                                                •{' '}
                                                                 {getTierLabel(
                                                                     pick.tier,
                                                                 )}

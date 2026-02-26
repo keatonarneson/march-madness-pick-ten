@@ -23,6 +23,7 @@ type PickRow = {
 type TeamRow = {
     team_id: string;
     team_name: string;
+    conference: string | null;
     rank: number | null;
 };
 
@@ -60,12 +61,9 @@ export async function GET(
         });
         const entryRows = entriesRes.data.values ?? [];
 
-        // Expect headers like: entry_id, display_name, email, created_at, is_paid
-        // Your POST currently writes: [entryId, displayName, email, nowIso, 'FALSE']
         const match = entryRows.find(r => String(r?.[0] ?? '').trim() === id);
 
         if (!match) {
-            // Helpful debug payload (safe)
             const sampleIds = entryRows
                 .slice(0, 10)
                 .map(r => String(r?.[0] ?? '').trim())
@@ -103,13 +101,18 @@ export async function GET(
             }))
             .filter(r => r.entry_id === id && r.team_id);
 
-        // Read Teams (Coaches Poll sheet) — must include team_id, team_name, rank
-        // Adjust range/sheet name if yours differs
+        // Read Teams (Coaches Poll sheet)
+        // ASSUMED COLUMNS:
+        // A: team_id
+        // B: team_name
+        // C: conference   <-- NEW
+        // D: rank         <-- moved from C to D after you inserted conference
         const teamsRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
             range: 'CoachesPoll!A2:Z',
         });
         const teamsRows = teamsRes.data.values ?? [];
+
         const teamMap = new Map<string, TeamRow>();
         for (const r of teamsRows) {
             const team_id = String(r?.[0] ?? '').trim();
@@ -118,7 +121,8 @@ export async function GET(
             teamMap.set(team_id, {
                 team_id,
                 team_name: String(r?.[1] ?? '').trim(),
-                rank: toRank(r?.[2]),
+                conference: String(r?.[2] ?? '').trim() || null, // <-- column C
+                rank: toRank(r?.[3]), // <-- column D
             });
         }
 
@@ -127,6 +131,7 @@ export async function GET(
             return {
                 team_id: p.team_id,
                 team_name: t?.team_name ?? p.team_id,
+                conference: t?.conference ?? null, // ✅ include it in response
                 tier: p.tier || 'UNRANKED',
                 rank: t?.rank ?? null,
             };

@@ -2,23 +2,31 @@ import { NextResponse } from 'next/server';
 import { getSheets, SHEET_ID } from '@/lib/sheets';
 import { readCoachesPoll } from '@/lib/poolData';
 
-type Team = { team_id: string; team_name: string; rank?: number };
+type Team = {
+    team_id: string;
+    team_name: string;
+    conference?: string;
+    rank?: number;
+};
 
 export async function GET() {
     try {
         const sheets = getSheets();
 
         // Load Teams tab (master list)
+        // Expected columns:
+        // A: team_id, B: team_name, C: conference
         const teamsRes = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: 'Teams!A:B',
+            range: 'Teams!A:C',
         });
 
         const teamRows = (teamsRes.data.values ?? []).slice(1);
         const teams: Team[] = teamRows
             .map(r => ({
-                team_id: String(r[0] ?? '').trim(),
-                team_name: String(r[1] ?? '').trim(),
+                team_id: String(r?.[0] ?? '').trim(),
+                team_name: String(r?.[1] ?? '').trim(),
+                conference: String(r?.[2] ?? '').trim() || undefined,
             }))
             .filter(t => t.team_id && t.team_name);
 
@@ -29,7 +37,7 @@ export async function GET() {
         const rankedTeams: Team[] = teams
             .filter(t => ranked.has(t.team_id))
             .map(t => ({ ...t, rank: ranked.get(t.team_id)! }))
-            .sort((a, b) => a.rank! - b.rank!);
+            .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999));
 
         const unrankedTeams: Team[] = teams
             .filter(t => !ranked.has(t.team_id))

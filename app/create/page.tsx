@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Team = { team_id: string; team_name: string; rank?: number };
+type Team = {
+    team_id: string;
+    team_name: string;
+    conference?: string;
+    rank?: number;
+};
 
 type PollResponse = {
     top_1_5: Team[];
@@ -135,20 +140,25 @@ export default function CreatePage() {
         return arr;
     }, [selected]);
 
-    // ✅ FIX: hook stays before any conditional return
+    // Keep unranked alphabetical (by team_name), but still filter and keep selected first.
     const unrankedFiltered = useMemo(() => {
         if (!poll) return [];
 
-        const query = unrankedQuery.toLowerCase();
+        const query = unrankedQuery.trim().toLowerCase();
 
-        // apply search filter first
-        const filtered = poll.unranked.filter(t =>
-            t.team_name.toLowerCase().includes(query),
-        );
+        const filtered = poll.unranked
+            .filter(t => {
+                if (!query) return true;
+                const name = (t.team_name || '').toLowerCase();
+                const conf = (t.conference || '').toLowerCase();
+                return name.includes(query) || conf.includes(query);
+            })
+            .slice()
+            .sort((a, b) =>
+                (a.team_name || '').localeCompare(b.team_name || ''),
+            );
 
         const selectedSet = new Set(selected.unranked);
-
-        // selected items first
         const selectedTeams = filtered.filter(t => selectedSet.has(t.team_id));
         const unselectedTeams = filtered.filter(
             t => !selectedSet.has(t.team_id),
@@ -260,7 +270,7 @@ export default function CreatePage() {
                                             {t.team_name}
                                         </div>
                                         <div style={ui.subText}>
-                                            {t.team_id}
+                                            {t.conference || '—'}
                                         </div>
                                     </button>
                                 );
@@ -315,7 +325,9 @@ export default function CreatePage() {
                                     <div style={{ fontWeight: 600 }}>
                                         {t.team_name}
                                     </div>
-                                    <div style={ui.subText}>{t.team_id}</div>
+                                    <div style={ui.subText}>
+                                        {t.conference || '—'}
+                                    </div>
                                 </button>
                             );
                         })}

@@ -66,23 +66,27 @@ export async function GET() {
         const picksRows = (picksRes.data.values ?? []).slice(1);
         const teamsRows = (teamsRes.data.values ?? []).slice(1);
 
-        // Build team name mapping
+        // Build team name + conference mappings
         const teamNameById = new Map<string, string>();
+        const teamConferenceById = new Map<string, string>();
+
         for (const r of teamsRows) {
-            const teamId = String(r[0] ?? '').trim();
-            const teamName = String(r[1] ?? '').trim();
-            if (teamId && teamName) {
-                teamNameById.set(teamId, teamName);
-            }
+            const teamId = String(r?.[0] ?? '').trim();
+            const teamName = String(r?.[1] ?? '').trim();
+            const conference = String(r?.[2] ?? '').trim(); // <-- column C
+
+            if (!teamId) continue;
+            if (teamName) teamNameById.set(teamId, teamName);
+            if (conference) teamConferenceById.set(teamId, conference);
         }
 
         const entries = entriesRows
             .map(r => ({
-                entry_id: String(r[0] ?? ''),
-                display_name: String(r[1] ?? ''),
-                email: String(r[2] ?? ''),
-                created_at: String(r[3] ?? ''),
-                is_paid: String(r[4] ?? '').toLowerCase() === 'true', // Column E
+                entry_id: String(r?.[0] ?? ''),
+                display_name: String(r?.[1] ?? ''),
+                email: String(r?.[2] ?? ''),
+                created_at: String(r?.[3] ?? ''),
+                is_paid: String(r?.[4] ?? '').toLowerCase() === 'true', // Column E
             }))
             .filter(e => e.entry_id);
 
@@ -104,26 +108,31 @@ export async function GET() {
             {
                 team_id: string;
                 team_name: string;
+                conference: string | null; // ✅ added
                 tier: string;
                 wins: number;
                 rank: number | null;
             }[]
         >();
+
         for (const r of picksRows) {
-            const entry_id = String(r[0] ?? '').trim();
-            const team_id = String(r[1] ?? '').trim();
-            const tier = String(r[2] ?? '').trim();
+            const entry_id = String(r?.[0] ?? '').trim();
+            const team_id = String(r?.[1] ?? '').trim();
+            const tier = String(r?.[2] ?? '').trim();
             if (!entry_id || !team_id) continue;
 
             const arr = picksByEntry.get(entry_id) ?? [];
             const teamResult = results.get(team_id);
+
             arr.push({
                 team_id,
                 team_name: teamNameById.get(team_id) ?? team_id,
+                conference: teamConferenceById.get(team_id) ?? null, // ✅ added
                 tier,
                 wins: teamResult?.wins ?? 0,
                 rank: null, // Will be filled from coaches poll if available
             });
+
             picksByEntry.set(entry_id, arr);
         }
 
@@ -168,9 +177,8 @@ export async function GET() {
                         ];
                         const aTierIndex = tierOrder.indexOf(a.tier);
                         const bTierIndex = tierOrder.indexOf(b.tier);
-                        if (aTierIndex !== bTierIndex) {
+                        if (aTierIndex !== bTierIndex)
                             return aTierIndex - bTierIndex;
-                        }
                         return a.team_name.localeCompare(b.team_name);
                     }),
                 };
