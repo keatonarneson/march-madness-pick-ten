@@ -135,6 +135,28 @@ export default function CreatePage() {
         return arr;
     }, [selected]);
 
+    // ✅ FIX: hook stays before any conditional return
+    const unrankedFiltered = useMemo(() => {
+        if (!poll) return [];
+
+        const query = unrankedQuery.toLowerCase();
+
+        // apply search filter first
+        const filtered = poll.unranked.filter(t =>
+            t.team_name.toLowerCase().includes(query),
+        );
+
+        const selectedSet = new Set(selected.unranked);
+
+        // selected items first
+        const selectedTeams = filtered.filter(t => selectedSet.has(t.team_id));
+        const unselectedTeams = filtered.filter(
+            t => !selectedSet.has(t.team_id),
+        );
+
+        return [...selectedTeams, ...unselectedTeams];
+    }, [poll, unrankedQuery, selected.unranked]);
+
     const submit = async () => {
         setSubmitting(true);
         setError(null);
@@ -170,10 +192,6 @@ export default function CreatePage() {
     };
 
     if (!poll) return <div style={{ padding: 16 }}>Loading…</div>;
-
-    const unrankedFiltered = poll.unranked.filter(t =>
-        t.team_name.toLowerCase().includes(unrankedQuery.toLowerCase()),
-    );
 
     return (
         <div style={{ padding: 16, maxWidth: 1100, margin: '0 auto' }}>
@@ -233,9 +251,13 @@ export default function CreatePage() {
                                                 ? ui.buttonSelected
                                                 : null),
                                         }}
+                                        type="button"
                                     >
                                         <div style={{ fontWeight: 600 }}>
-                                            #{t.rank} {t.team_name}
+                                            {t.rank != null
+                                                ? `#${t.rank} `
+                                                : ''}
+                                            {t.team_name}
                                         </div>
                                         <div style={ui.subText}>
                                             {t.team_id}
@@ -288,6 +310,7 @@ export default function CreatePage() {
                                         ...ui.button,
                                         ...(checked ? ui.buttonSelected : null),
                                     }}
+                                    type="button"
                                 >
                                     <div style={{ fontWeight: 600 }}>
                                         {t.team_name}
@@ -320,6 +343,7 @@ export default function CreatePage() {
                     onClick={submit}
                     disabled={!canSubmit || submitting}
                     style={ui.submitBtn(canSubmit && !submitting)}
+                    type="button"
                 >
                     {submitting ? 'Submitting…' : 'Submit Entry'}
                 </button>
