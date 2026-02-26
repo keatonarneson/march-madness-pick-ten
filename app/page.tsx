@@ -58,12 +58,20 @@ export default async function HomePage() {
     const config = await readConfig();
 
     const lockRaw = String(config.lock_at ?? '').trim();
-    const lockAt = lockRaw ? new Date(lockRaw) : null;
-    const lockValid = !!lockAt && !Number.isNaN(lockAt.getTime());
-    const isLocked = lockValid ? new Date() > (lockAt as Date) : false;
+
+    // If lock_at is missing a timezone, assume Central (CDT/CST) by requiring it in config.
+    // (Best: keep lock_at in sheet as 2026-03-16T17:00:00-05:00)
+    const hasTz = /([zZ]|[+-]\d{2}:\d{2})$/.test(lockRaw);
+    const lockIso = lockRaw && !hasTz ? `${lockRaw}-05:00` : lockRaw; // fallback only
+
+    const lockMs = lockIso ? Date.parse(lockIso) : NaN;
+    const lockValid = Number.isFinite(lockMs);
+
+    const nowMs = Date.now();
+    const isLocked = lockValid ? nowMs >= lockMs : false;
 
     const seasonYear = String(config.season_year ?? '2026').trim();
-    const pollDate = String(config.poll_date ?? '2025-03-10').trim();
+    const pollDate = String(config.poll_date ?? '2026-03-10').trim();
     const entryFee = Number(config.entry_fee ?? 20);
 
     const primaryHref = isLocked ? '/leaderboard' : '/create';
