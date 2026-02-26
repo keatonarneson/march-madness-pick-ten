@@ -5,18 +5,36 @@ import { readConfig } from '@/lib/poolData';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const fmtDateTime = (iso: string) => {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
+/* ---------- Lock banner formatter (timezone safe, includes day) ---------- */
+
+const fmtLockBanner = (lockMs: number) => {
+    const d = new Date(lockMs);
+
+    const fmtTime = (tz: string) =>
+        new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            hour: 'numeric',
+            minute: '2-digit',
+        }).format(d);
+
+    const fmtDate = (tz: string) =>
+        new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+        }).format(d);
+
+    // Use Central date as the "official" day
+    const dateCT = fmtDate('America/Chicago');
+    const ct = fmtTime('America/Chicago');
+    const et = fmtTime('America/New_York');
+    const pt = fmtTime('America/Los_Angeles');
+
+    return `${dateCT} — ${ct} CT (${et} ET / ${pt} PT)`;
 };
+
+/* ---------- styles ---------- */
 
 const styles = {
     page: {
@@ -54,15 +72,16 @@ const styles = {
     } as const,
 };
 
+/* ---------- page ---------- */
+
 export default async function HomePage() {
     const config = await readConfig();
 
     const lockRaw = String(config.lock_at ?? '').trim();
 
-    // If lock_at is missing a timezone, assume Central (CDT/CST) by requiring it in config.
-    // (Best: keep lock_at in sheet as 2026-03-16T17:00:00-05:00)
+    // ensure timezone exists (fallback only if config missing it)
     const hasTz = /([zZ]|[+-]\d{2}:\d{2})$/.test(lockRaw);
-    const lockIso = lockRaw && !hasTz ? `${lockRaw}-05:00` : lockRaw; // fallback only
+    const lockIso = lockRaw && !hasTz ? `${lockRaw}-05:00` : lockRaw;
 
     const lockMs = lockIso ? Date.parse(lockIso) : NaN;
     const lockValid = Number.isFinite(lockMs);
@@ -119,7 +138,7 @@ export default async function HomePage() {
                                 {isLocked
                                     ? 'Submissions locked at'
                                     : 'Submissions close at'}{' '}
-                                <b>{fmtDateTime(lockRaw)}</b>
+                                <b>{fmtLockBanner(lockMs)}</b>
                             </span>
                         </div>
                     ) : (
@@ -159,6 +178,7 @@ export default async function HomePage() {
                     >
                         Leaderboard
                     </Link>
+
                     <Link
                         href="/payment"
                         style={{
