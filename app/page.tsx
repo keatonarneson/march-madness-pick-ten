@@ -151,6 +151,18 @@ export default async function HomePage() {
                     >
                         Leaderboard
                     </Link>
+                    <Link
+                        href="/payment"
+                        style={{
+                            display: 'inline-block',
+                            padding: '10px 14px',
+                            borderRadius: 10,
+                            border: '1px solid #ddd',
+                            textDecoration: 'none',
+                        }}
+                    >
+                        Payment Info
+                    </Link>
                 </div>
             </div>
 
