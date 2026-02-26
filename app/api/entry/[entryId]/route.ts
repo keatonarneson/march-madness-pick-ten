@@ -1,215 +1,136 @@
 // app/api/entry/[entryId]/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSheets, SHEET_ID } from '@/lib/sheets';
-import { readCoachesPoll } from '@/lib/poolData';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-type Row = (string | undefined)[];
+type EntryRow = {
+    entry_id: string;
+    display_name: string;
+    email: string;
+    created_at: string;
+    is_paid: boolean;
+};
 
-function headerIndex(headers: Row, name: string) {
-    const idx = headers.findIndex(
-        h =>
-            String(h ?? '')
-                .trim()
-                .toLowerCase() === name.toLowerCase(),
-    );
-    return idx >= 0 ? idx : null;
-}
+type PickRow = {
+    entry_id: string;
+    team_id: string;
+    tier: string;
+    created_at: string;
+};
 
-function cell(row: Row, idx: number | null) {
-    if (idx === null) return '';
-    return String(row[idx] ?? '').trim();
-}
+type TeamRow = {
+    team_id: string;
+    team_name: string;
+    rank: number | null;
+};
+
+const toBool = (v: any) =>
+    String(v ?? '')
+        .trim()
+        .toLowerCase() === 'true';
+
+const toRank = (v: any) => {
+    const n = Number(String(v ?? '').trim());
+    return Number.isFinite(n) ? n : null;
+};
 
 export async function GET(
-    request: Request,
-    { params }: { params: { entryId: string } },
+    _request: NextRequest,
+    context: { params: Promise<{ entryId: string }> },
 ) {
     try {
-        // Multiple approaches to extract the entry ID
-        let entryId: string | null = null;
+        const { entryId } = await context.params;
+        const id = decodeURIComponent(String(entryId ?? '')).trim();
 
-        // Method 1: From params object
-        if (params?.entryId) {
-            entryId = params.entryId;
-        }
-
-        // Method 2: Extract from URL as fallback
-        if (!entryId) {
-            const url = new URL(request.url);
-            const pathSegments = url.pathname.split('/');
-            const entryIndex = pathSegments.indexOf('entry');
-            if (entryIndex !== -1 && pathSegments[entryIndex + 1]) {
-                entryId = pathSegments[entryIndex + 1];
-            }
-        }
-
-        // Method 3: Try await params in case it's a Promise (Next.js 15+)
-        if (!entryId) {
-            try {
-                const resolvedParams = await Promise.resolve(params);
-                entryId = resolvedParams?.entryId;
-            } catch (e) {
-                // Not a promise, ignore
-            }
-        }
-
-        if (!entryId) {
+        if (!id) {
             return NextResponse.json(
-                {
-                    error: 'Entry ID parameter is missing',
-                    debug: {
-                        params: params,
-                        paramsKeys: Object.keys(params || {}),
-                        url: request.url,
-                        pathname: new URL(request.url).pathname,
-                        pathSegments: new URL(request.url).pathname.split('/'),
-                    },
-                },
-                { status: 400 },
-            );
-        }
-
-        // Clean up the entry ID
-        entryId = decodeURIComponent(entryId).trim();
-
-        if (!entryId) {
-            return NextResponse.json(
-                {
-                    error: 'Entry ID is empty after processing',
-                    debug: {
-                        originalParams: params,
-                        extractedEntryId: entryId,
-                    },
-                },
+                { error: 'Missing entryId.' },
                 { status: 400 },
             );
         }
 
         const sheets = getSheets();
 
-        const [entriesRes, picksRes, teamsRes] = await Promise.all([
-            // Use a wide range so column changes don't break things
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SHEET_ID,
-                range: 'Entries!A:Z',
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SHEET_ID,
-                range: 'Picks!A:Z',
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: SHEET_ID,
-                range: 'Teams!A:Z',
-            }),
-        ]);
-
-        const entriesValues = entriesRes.data.values ?? [];
-        const picksValues = picksRes.data.values ?? [];
-        const teamsValues = teamsRes.data.values ?? [];
-
-        if (entriesValues.length < 2) {
-            return NextResponse.json(
-                { error: 'Entries sheet has no data rows.' },
-                { status: 500 },
-            );
-        }
-
-        const entriesHeader = entriesValues[0] as Row;
-        const iEntryId = headerIndex(entriesHeader, 'entry_id');
-        const iDisplayName = headerIndex(entriesHeader, 'display_name');
-        const iEmail = headerIndex(entriesHeader, 'email');
-        const iCreatedAt = headerIndex(entriesHeader, 'created_at');
-        const iIsPaid = headerIndex(entriesHeader, 'is_paid');
-
-        if (iEntryId === null) {
-            return NextResponse.json(
-                {
-                    error: "Entries sheet missing required column 'entry_id'.",
-                    entriesHeader,
-                },
-                { status: 500 },
-            );
-        }
-
-        const entries = entriesValues.slice(1).map(r => {
-            const row = r as Row;
-            const isPaidRaw = cell(row, iIsPaid).toLowerCase();
-            return {
-                entry_id: cell(row, iEntryId),
-                display_name: cell(row, iDisplayName),
-                email: cell(row, iEmail),
-                created_at: cell(row, iCreatedAt),
-                is_paid: isPaidRaw === 'true',
-            };
+        // Read Entries
+        const entriesRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: 'Entries!A2:Z',
         });
+        const entryRows = entriesRes.data.values ?? [];
 
-        const entry = entries.find(e => e.entry_id === entryId);
+        // Expect headers like: entry_id, display_name, email, created_at, is_paid
+        // Your POST currently writes: [entryId, displayName, email, nowIso, 'FALSE']
+        const match = entryRows.find(r => String(r?.[0] ?? '').trim() === id);
 
-        if (!entry) {
+        if (!match) {
+            // Helpful debug payload (safe)
+            const sampleIds = entryRows
+                .slice(0, 10)
+                .map(r => String(r?.[0] ?? '').trim())
+                .filter(Boolean);
+
             return NextResponse.json(
                 {
                     error: 'Not found',
-                    requested: entryId,
-                    sample_entry_ids: entries
-                        .map(e => e.entry_id)
-                        .filter(Boolean)
-                        .slice(0, 15),
+                    requested: id,
+                    sample_entry_ids: sampleIds,
                 },
                 { status: 404 },
             );
         }
 
-        // Teams mapping
-        const teamsHeader = (teamsValues[0] ?? []) as Row;
-        const iTeamId = headerIndex(teamsHeader, 'team_id');
-        const iTeamName = headerIndex(teamsHeader, 'team_name');
+        const entry: EntryRow = {
+            entry_id: String(match?.[0] ?? '').trim(),
+            display_name: String(match?.[1] ?? '').trim(),
+            email: String(match?.[2] ?? '').trim(),
+            created_at: String(match?.[3] ?? '').trim(),
+            is_paid: toBool(match?.[4] ?? false),
+        };
 
-        const teamNameById = new Map<string, string>();
-        for (const r of teamsValues.slice(1)) {
-            const row = r as Row;
-            const id = cell(row, iTeamId);
-            const name = cell(row, iTeamName);
-            if (id && name) teamNameById.set(id, name);
-        }
+        // Read Picks
+        const picksRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: 'Picks!A2:Z',
+        });
+        const pickRows = (picksRes.data.values ?? [])
+            .map(r => ({
+                entry_id: String(r?.[0] ?? '').trim(),
+                team_id: String(r?.[1] ?? '').trim(),
+                tier: String(r?.[2] ?? '').trim(),
+                created_at: String(r?.[3] ?? '').trim(),
+            }))
+            .filter(r => r.entry_id === id && r.team_id);
 
-        // Picks mapping
-        const picksHeader = (picksValues[0] ?? []) as Row;
-        const iPickEntryId = headerIndex(picksHeader, 'entry_id');
-        const iPickTeamId = headerIndex(picksHeader, 'team_id');
-        const iPickTier = headerIndex(picksHeader, 'tier');
+        // Read Teams (Coaches Poll sheet) — must include team_id, team_name, rank
+        // Adjust range/sheet name if yours differs
+        const teamsRes = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: 'CoachesPoll!A2:Z',
+        });
+        const teamsRows = teamsRes.data.values ?? [];
+        const teamMap = new Map<string, TeamRow>();
+        for (const r of teamsRows) {
+            const team_id = String(r?.[0] ?? '').trim();
+            if (!team_id) continue;
 
-        if (
-            iPickEntryId === null ||
-            iPickTeamId === null ||
-            iPickTier === null
-        ) {
-            return NextResponse.json(
-                {
-                    error: "Picks sheet missing one of required columns: 'entry_id', 'team_id', 'tier'.",
-                    picksHeader,
-                },
-                { status: 500 },
-            );
-        }
-
-        const poll = await readCoachesPoll(); // team_id -> rank
-
-        const picks = picksValues
-            .slice(1)
-            .map(r => r as Row)
-            .filter(row => cell(row, iPickEntryId) === entryId)
-            .map(row => {
-                const team_id = cell(row, iPickTeamId);
-                const tier = cell(row, iPickTier);
-                return {
-                    team_id,
-                    tier,
-                    team_name: teamNameById.get(team_id) ?? team_id,
-                    rank: poll.get(team_id) ?? null,
-                };
+            teamMap.set(team_id, {
+                team_id,
+                team_name: String(r?.[1] ?? '').trim(),
+                rank: toRank(r?.[2]),
             });
+        }
+
+        const picks = pickRows.map(p => {
+            const t = teamMap.get(p.team_id);
+            return {
+                team_id: p.team_id,
+                team_name: t?.team_name ?? p.team_id,
+                tier: p.tier || 'UNRANKED',
+                rank: t?.rank ?? null,
+            };
+        });
 
         return NextResponse.json({ entry, picks }, { status: 200 });
     } catch (e: any) {
