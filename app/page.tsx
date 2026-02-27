@@ -1,9 +1,40 @@
 // app/page.tsx
 import Link from 'next/link';
 import { readConfig } from '@/lib/poolData';
+import type { Metadata } from 'next';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+    title: 'March Madness Pick-10 Pool',
+    description:
+        'Pick 10 teams across ranking tiers and compete for the prize pool.',
+    alternates: { canonical: '/' },
+    openGraph: {
+        title: 'March Madness Pick-10 Pool',
+        description:
+            'Pick 10 teams across ranking tiers and compete for the prize pool.',
+        type: 'website',
+        siteName: 'Pick-10 Pool',
+        url: '/',
+        images: [
+            {
+                url: '/preview.png',
+                width: 1200,
+                height: 630,
+                alt: 'March Madness Pick-10 Pool',
+            },
+        ],
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'March Madness Pick-10 Pool',
+        description:
+            'Pick 10 teams across ranking tiers and compete for the prize pool.',
+        images: ['/preview.png'],
+    },
+};
 
 /* ---------- Lock banner formatter (timezone safe, includes day) ---------- */
 
