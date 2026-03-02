@@ -124,6 +124,13 @@ export default async function HomePage() {
     const pollDate = String(config.poll_date ?? '2026-03-10').trim();
     const entryFee = Number(config.entry_fee ?? 20);
 
+    const serviceFeeDecimal = Number(config.service_fee ?? 0);
+
+    // Convert 0.05 → 5
+    const serviceFeePercent = Number.isFinite(serviceFeeDecimal)
+        ? serviceFeeDecimal * 100
+        : 0;
+
     const primaryHref = isLocked ? '/leaderboard' : '/create';
     const primaryText = isLocked ? 'View Leaderboard' : 'Create Entry';
 
@@ -306,11 +313,32 @@ export default async function HomePage() {
                                 per entry
                             </div>
                             <div style={{ marginTop: 6, opacity: 0.9 }}>
-                                Top 5 payouts:
-                                <div style={{ fontSize: 14, opacity: 0.85 }}>
-                                    1st 45% • 2nd 25% • 3rd 15% • 4th 10% • 5th
-                                    5%
+                                <div style={{ marginTop: 6 }}>
+                                    <b>Top 5 payouts</b>
+                                    <div
+                                        style={{ fontSize: 14, opacity: 0.85 }}
+                                    >
+                                        1st 45% • 2nd 25% • 3rd 15% • 4th 10% •
+                                        5th 5%
+                                    </div>
                                 </div>
+
+                                {Number.isFinite(serviceFeePercent) &&
+                                    serviceFeePercent > 0 && (
+                                        <div
+                                            style={{
+                                                fontSize: 13,
+                                                opacity: 0.75,
+                                                marginTop: 6,
+                                            }}
+                                        >
+                                            Prize pool is calculated after a{' '}
+                                            {serviceFeePercent
+                                                .toFixed(2)
+                                                .replace(/\.00$/, '')}
+                                            % service fee.
+                                        </div>
+                                    )}
                             </div>
                         </div>
                     </div>

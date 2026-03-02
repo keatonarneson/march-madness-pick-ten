@@ -34,8 +34,9 @@ type Payout = {
 };
 
 type LeaderboardResponse = {
-    pot: number;
+    pot: number; // after fee
     paidCount: number;
+    serviceFeePct?: number; // e.g. 5
     payouts: Payout[];
     rows: LeaderboardEntry[];
 };
@@ -276,6 +277,9 @@ export default function LeaderboardPage() {
         return Math.max(0, data.rows.length - data.paidCount);
     }, [data]);
 
+    const fmtMoney = (n: number) =>
+        n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
     if (loading) {
         return (
             <div style={{ ...ui.page, textAlign: 'center' }}>
@@ -403,8 +407,20 @@ export default function LeaderboardPage() {
                         <div style={{ fontSize: 28, fontWeight: 900 }}>
                             ${data.pot}
                         </div>
+
                         <div style={{ fontSize: 13, ...ui.muted }}>
                             Total prize pool ({data.paidCount} paid entries)
+                            {typeof data.serviceFeePct === 'number' &&
+                                data.serviceFeePct > 0 && (
+                                    <>
+                                        {' '}
+                                        — Calculated after a{' '}
+                                        {data.serviceFeePct
+                                            .toFixed(2)
+                                            .replace(/\.00$/, '')}
+                                        % service fee
+                                    </>
+                                )}
                         </div>
                     </div>
 
@@ -431,7 +447,7 @@ export default function LeaderboardPage() {
                                         %)
                                     </div>
                                     <div style={{ fontWeight: 900 }}>
-                                        ${p.amount}
+                                        {fmtMoney(p.amount)}
                                     </div>
                                 </div>
                             ))}

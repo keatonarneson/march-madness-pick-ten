@@ -6,14 +6,14 @@ export const metadata = {
     title: 'How to Pay | March Madness Pick 10',
 };
 
-const VENMO_HANDLE = '@YOUR_VENMO_HERE';
-const PAYPAL_CONTACT = 'YOUR_PAYPAL_EMAIL_HERE';
-const EMAIL = 'YOUR_EMAIL_HERE';
-
 export default async function PaymentPage() {
     const config = await readConfig();
 
     const entryFee = Number(config?.entry_fee ?? 20);
+
+    const VENMO_HANDLE = String(config?.venmo_handle ?? '').trim();
+    const PAYPAL_CONTACT = String(config?.paypal_contact ?? '').trim();
+    const EMAIL = String(config?.commissioner_email ?? '').trim();
 
     return (
         <main style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px' }}>

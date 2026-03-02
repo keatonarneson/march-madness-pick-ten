@@ -202,15 +202,36 @@ export async function GET() {
 
         // payouts
         const paidCount = entries.filter(e => e.is_paid).length;
-        const fee = Number(config.entry_fee ?? 20);
-        const pot = paidCount * (Number.isFinite(fee) ? fee : 20);
-        const payouts = [
+
+        const entryFee = Number(config.entry_fee ?? 20);
+        const entryFeeSafe = Number.isFinite(entryFee) ? entryFee : 20;
+
+        // service_fee is stored like 0.05 in the sheet
+        const serviceFeeDecimal = Number(config.service_fee ?? 0);
+        const serviceFeeDecimalSafe = Number.isFinite(serviceFeeDecimal)
+            ? Math.min(Math.max(serviceFeeDecimal, 0), 1)
+            : 0;
+
+        const serviceFeePct = serviceFeeDecimalSafe * 100;
+
+        const grossPot = paidCount * entryFeeSafe;
+        const netPot =
+            Math.round(grossPot * (1 - serviceFeeDecimalSafe) * 100) / 100;
+
+        const payoutDefs = [
             { place: 1, pct: 0.45 },
             { place: 2, pct: 0.25 },
             { place: 3, pct: 0.15 },
             { place: 4, pct: 0.1 },
             { place: 5, pct: 0.05 },
-        ].map(p => ({ ...p, amount: Math.round(pot * p.pct * 100) / 100 }));
+        ];
+
+        const payouts = payoutDefs.map(p => ({
+            ...p,
+            amount: Math.round(netPot * p.pct * 100) / 100,
+        }));
+
+        const pot = netPot; // keep response shape: pot = displayed prize pool (after fee)
 
         return NextResponse.json(
             {
@@ -218,6 +239,7 @@ export async function GET() {
                 paidCount,
                 payouts,
                 rows,
+                serviceFeePct,
                 debug: {
                     totalEntriesFromSheet: entries.length,
                     showUnpaid,
