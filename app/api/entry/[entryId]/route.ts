@@ -115,14 +115,16 @@ export async function GET(
 
         const teamMap = new Map<string, TeamRow>();
         for (const r of teamsRows) {
-            const team_id = String(r?.[0] ?? '').trim();
+            // CoachesPoll columns (your actual sheet):
+            // A: rank, B: team_id, C: team_name, D: conference
+            const team_id = String(r?.[1] ?? '').trim(); // column B
             if (!team_id) continue;
 
             teamMap.set(team_id, {
                 team_id,
-                team_name: String(r?.[1] ?? '').trim(),
-                conference: String(r?.[2] ?? '').trim() || null, // <-- column C
-                rank: toRank(r?.[3]), // <-- column D
+                team_name: String(r?.[2] ?? '').trim(), // column C
+                conference: String(r?.[3] ?? '').trim() || null, // column D
+                rank: toRank(r?.[0]), // column A
             });
         }
 

@@ -349,7 +349,7 @@ export default function EntryPage() {
                                                     ...ui.muted,
                                                 }}
                                             >
-                                                {p.rank
+                                                {(p.rank ?? 0) > 0
                                                     ? `#${p.rank}`
                                                     : 'Unranked'}{' '}
                                                 • {p.team_id}
