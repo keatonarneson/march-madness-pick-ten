@@ -46,7 +46,7 @@ export default async function PaymentPage() {
                     Send <strong>${entryFee}</strong> to{' '}
                     <strong>{VENMO_HANDLE}</strong>.
                     <br />
-                    Note: “March Madness Pick 10 – <em>Your Display Name</em>”
+                    Note: “Pizza – <em>Your Display Name</em>”
                 </p>
             </section>
 
@@ -56,7 +56,7 @@ export default async function PaymentPage() {
                     Send <strong>${entryFee}</strong> to{' '}
                     <strong>{PAYPAL_CONTACT}</strong>.
                     <br />
-                    Note: “March Madness Pick 10 – <em>Your Display Name</em>”
+                    Note: “Pizza – <em>Your Display Name</em>”
                 </p>
             </section>
 
