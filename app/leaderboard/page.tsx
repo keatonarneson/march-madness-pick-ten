@@ -39,6 +39,7 @@ type LeaderboardResponse = {
     serviceFeePct?: number; // e.g. 5
     payouts: Payout[];
     rows: LeaderboardEntry[];
+    show_picks?: boolean; // <- added
 };
 
 const ui = {
@@ -80,6 +81,7 @@ const ui = {
         background: 'var(--background)',
     } as const,
 
+    // keep default templates here, but we'll override inline where needed
     tableHeader: {
         padding: '12px 16px',
         borderBottom: '1px solid var(--border)',
@@ -324,6 +326,23 @@ export default function LeaderboardPage() {
         );
     }
 
+    // New: read show_picks from API (default true)
+    const showPicks = data.show_picks ?? true;
+
+    // helper templates for grid columns
+    const desktopGridCols = showPicks
+        ? 'auto 1fr auto auto auto auto auto auto'
+        : 'auto 1fr auto auto auto auto auto';
+    const rowBaseStyle = (isPayout: boolean) => ({
+        ...ui.row,
+        gridTemplateColumns: desktopGridCols,
+        ...(isPayout ? ui.payoutHighlight : null),
+    });
+    const headerStyle = {
+        ...ui.tableHeader,
+        gridTemplateColumns: desktopGridCols,
+    };
+
     return (
         <div style={ui.page}>
             {/* Local CSS to switch layouts */}
@@ -459,7 +478,7 @@ export default function LeaderboardPage() {
             {/* DESKTOP TABLE */}
             <div className="desktopOnly">
                 <div style={ui.tableWrap}>
-                    <div style={ui.tableHeader}>
+                    <div style={headerStyle}>
                         <div>Rank</div>
                         <div>Entry</div>
                         <div>Pts</div>
@@ -467,7 +486,7 @@ export default function LeaderboardPage() {
                         <div title="Unranked wins">UR</div>
                         <div title="Final Four teams">F4</div>
                         <div title="Elite Eight teams">E8</div>
-                        <div>Picks</div>
+                        {showPicks && <div>Picks</div>}
                     </div>
 
                     {data.rows.map((entry, idx) => {
@@ -477,14 +496,7 @@ export default function LeaderboardPage() {
 
                         return (
                             <div key={entry.entry_id}>
-                                <div
-                                    style={{
-                                        ...ui.row,
-                                        ...(isPayout
-                                            ? ui.payoutHighlight
-                                            : null),
-                                    }}
-                                >
+                                <div style={rowBaseStyle(isPayout)}>
                                     <div
                                         style={{
                                             fontWeight: 900,
@@ -495,16 +507,22 @@ export default function LeaderboardPage() {
                                     </div>
 
                                     <div>
-                                        <Link
-                                            href={`/entry/${encodeURIComponent(entry.entry_id)}`}
-                                            style={{
-                                                textDecoration: 'none',
-                                                fontWeight: 900,
-                                                color: 'var(--link)',
-                                            }}
-                                        >
-                                            {entry.display_name}
-                                        </Link>
+                                        {showPicks ? (
+                                            <Link
+                                                href={`/entry/${encodeURIComponent(entry.entry_id)}`}
+                                                style={{
+                                                    textDecoration: 'none',
+                                                    fontWeight: 900,
+                                                    color: 'var(--link)',
+                                                }}
+                                            >
+                                                {entry.display_name}
+                                            </Link>
+                                        ) : (
+                                            <span style={{ fontWeight: 900 }}>
+                                                {entry.display_name}
+                                            </span>
+                                        )}
                                         <div
                                             style={{
                                                 marginTop: 3,
@@ -561,20 +579,24 @@ export default function LeaderboardPage() {
                                         {entry.tiebreak.e8}
                                     </div>
 
-                                    <div style={{ textAlign: 'right' }}>
-                                        <button
-                                            onClick={() =>
-                                                toggleExpanded(entry.entry_id)
-                                            }
-                                            style={ui.showBtn}
-                                        >
-                                            {isExpanded ? 'Hide' : 'Show'} (
-                                            {entry.picks?.length || 0})
-                                        </button>
-                                    </div>
+                                    {showPicks ? (
+                                        <div style={{ textAlign: 'right' }}>
+                                            <button
+                                                onClick={() =>
+                                                    toggleExpanded(
+                                                        entry.entry_id,
+                                                    )
+                                                }
+                                                style={ui.showBtn}
+                                            >
+                                                {isExpanded ? 'Hide' : 'Show'} (
+                                                {entry.picks?.length || 0})
+                                            </button>
+                                        </div>
+                                    ) : null}
                                 </div>
 
-                                {isExpanded && (
+                                {showPicks && isExpanded && (
                                     <div style={ui.expandedWrap}>
                                         <div
                                             style={{
@@ -633,7 +655,8 @@ export default function LeaderboardPage() {
                                                     fontSize: 13,
                                                 }}
                                             >
-                                                No picks found.
+                                                Picks will be shown after the
+                                                lock date.
                                             </div>
                                         )}
                                     </div>
@@ -675,21 +698,23 @@ export default function LeaderboardPage() {
                                 <div style={ui.mobileTop}>
                                     <div style={ui.mobileRank}>#{position}</div>
 
-                                    <button
-                                        onClick={() =>
-                                            toggleExpanded(entry.entry_id)
-                                        }
-                                        style={{
-                                            ...ui.showBtn,
-                                            width: '100%',
-                                            justifySelf: 'stretch',
-                                        }}
-                                    >
-                                        {isExpanded
-                                            ? 'Hide picks'
-                                            : 'Show picks'}{' '}
-                                        ({entry.picks?.length || 0})
-                                    </button>
+                                    {showPicks ? (
+                                        <button
+                                            onClick={() =>
+                                                toggleExpanded(entry.entry_id)
+                                            }
+                                            style={{
+                                                ...ui.showBtn,
+                                                width: '100%',
+                                                justifySelf: 'stretch',
+                                            }}
+                                        >
+                                            {isExpanded
+                                                ? 'Hide picks'
+                                                : 'Show picks'}{' '}
+                                            ({entry.picks?.length || 0})
+                                        </button>
+                                    ) : null}
 
                                     <div style={ui.mobilePts}>
                                         {entry.points}
@@ -697,15 +722,21 @@ export default function LeaderboardPage() {
                                 </div>
 
                                 <div style={ui.mobileName}>
-                                    <Link
-                                        href={`/entry/${encodeURIComponent(entry.entry_id)}`}
-                                        style={{
-                                            textDecoration: 'none',
-                                            color: 'var(--link)',
-                                        }}
-                                    >
-                                        {entry.display_name}
-                                    </Link>
+                                    {showPicks ? (
+                                        <Link
+                                            href={`/entry/${encodeURIComponent(entry.entry_id)}`}
+                                            style={{
+                                                textDecoration: 'none',
+                                                color: 'var(--link)',
+                                            }}
+                                        >
+                                            {entry.display_name}
+                                        </Link>
+                                    ) : (
+                                        <span style={{ fontWeight: 900 }}>
+                                            {entry.display_name}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div style={ui.mobileMeta}>
@@ -744,7 +775,7 @@ export default function LeaderboardPage() {
                                     </div>
                                 </div>
 
-                                {isExpanded && (
+                                {showPicks && isExpanded && (
                                     <div style={{ marginTop: 12 }}>
                                         {entry.picks?.length ? (
                                             <div

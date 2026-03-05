@@ -13,6 +13,8 @@ const ROUND_RANK: Record<string, number> = {
     CHAMPION: 7,
 };
 
+let showPicks = true;
+
 export async function GET() {
     try {
         // More robust config reading with fallbacks
@@ -25,10 +27,14 @@ export async function GET() {
                 String(
                     config.show_unpaid_on_leaderboard ?? 'TRUE',
                 ).toLowerCase() === 'true';
+
+            showPicks =
+                String(config.show_picks ?? 'TRUE').toLowerCase() === 'true';
         } catch (configError) {
             console.log('Config sheet error, using defaults:', configError);
             config = { entry_fee: '20' }; // Default entry fee
             showUnpaid = true; // Show all entries by default when config is missing
+            showPicks = true;
         }
 
         const sheets = getSheets();
@@ -166,21 +172,22 @@ export async function GET() {
                     is_paid: e.is_paid,
                     points: total,
                     tiebreak: { championOnList, unrankedWins, f4, e8, s16 },
-                    picks: picks.sort((a, b) => {
-                        // Sort by tier order then by team name
-                        const tierOrder = [
-                            'TOP_1_5',
-                            'TOP_6_10',
-                            'TOP_11_15',
-                            'TOP_16_25',
-                            'UNRANKED',
-                        ];
-                        const aTierIndex = tierOrder.indexOf(a.tier);
-                        const bTierIndex = tierOrder.indexOf(b.tier);
-                        if (aTierIndex !== bTierIndex)
-                            return aTierIndex - bTierIndex;
-                        return a.team_name.localeCompare(b.team_name);
-                    }),
+                    picks: showPicks
+                        ? picks.sort((a, b) => {
+                              const tierOrder = [
+                                  'TOP_1_5',
+                                  'TOP_6_10',
+                                  'TOP_11_15',
+                                  'TOP_16_25',
+                                  'UNRANKED',
+                              ];
+                              const aTierIndex = tierOrder.indexOf(a.tier);
+                              const bTierIndex = tierOrder.indexOf(b.tier);
+                              if (aTierIndex !== bTierIndex)
+                                  return aTierIndex - bTierIndex;
+                              return a.team_name.localeCompare(b.team_name);
+                          })
+                        : [],
                 };
             })
             .sort((a, b) => {
@@ -240,6 +247,7 @@ export async function GET() {
                 payouts,
                 rows,
                 serviceFeePct,
+                show_picks: showPicks,
                 debug: {
                     totalEntriesFromSheet: entries.length,
                     showUnpaid,
