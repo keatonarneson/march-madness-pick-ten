@@ -240,6 +240,8 @@ export async function GET() {
 
         const pot = netPot; // keep response shape: pot = displayed prize pool (after fee)
 
+        const lockAt = String(config.lock_at ?? '').trim() || undefined;
+
         return NextResponse.json(
             {
                 pot,
@@ -248,6 +250,7 @@ export async function GET() {
                 rows,
                 serviceFeePct,
                 show_picks: showPicks,
+                lock_at: lockAt,
                 debug: {
                     totalEntriesFromSheet: entries.length,
                     showUnpaid,

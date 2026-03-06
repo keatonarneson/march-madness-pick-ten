@@ -40,6 +40,7 @@ type LeaderboardResponse = {
     payouts: Payout[];
     rows: LeaderboardEntry[];
     show_picks?: boolean; // <- added
+    lock_at?: string;
 };
 
 const ui = {
@@ -328,6 +329,9 @@ export default function LeaderboardPage() {
 
     // New: read show_picks from API (default true)
     const showPicks = data.show_picks ?? true;
+    const isLocked = data.lock_at
+        ? Date.now() >= Date.parse(data.lock_at)
+        : false;
 
     // helper templates for grid columns
     const desktopGridCols = showPicks
@@ -380,9 +384,11 @@ export default function LeaderboardPage() {
                     <Link href="/" style={ui.pillLink}>
                         ← Back to Home
                     </Link>
-                    <Link href="/create" style={ui.pillLink}>
-                        Submit Entry
-                    </Link>
+                    {!isLocked && (
+                        <Link href="/create" style={ui.pillLink}>
+                            Submit Entry
+                        </Link>
+                    )}
                 </div>
             </div>
 
