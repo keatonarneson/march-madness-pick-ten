@@ -87,7 +87,7 @@ const ui = {
         padding: '12px 16px',
         borderBottom: '1px solid var(--border)',
         display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto auto auto auto auto auto',
+        gridTemplateColumns: 'auto 1fr auto auto auto auto auto auto auto',
         gap: 16,
         alignItems: 'center',
         fontSize: 13,
@@ -98,7 +98,7 @@ const ui = {
     row: {
         padding: '12px 16px',
         display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto auto auto auto auto auto',
+        gridTemplateColumns: 'auto 1fr auto auto auto auto auto auto auto',
         gap: 16,
         alignItems: 'center',
         borderBottom: '1px solid rgba(127,127,127,0.18)',
@@ -203,7 +203,7 @@ const ui = {
     mobileTB: {
         marginTop: 12,
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateColumns: 'repeat(5, 1fr)',
         gap: 8,
     } as const,
     tbChip: {
@@ -335,8 +335,8 @@ export default function LeaderboardPage() {
 
     // helper templates for grid columns
     const desktopGridCols = showPicks
-        ? 'auto 1fr auto auto auto auto auto auto'
-        : 'auto 1fr auto auto auto auto auto';
+        ? 'auto 1fr auto auto auto auto auto auto auto'
+        : 'auto 1fr auto auto auto auto auto auto';
     const rowBaseStyle = (isPayout: boolean) => ({
         ...ui.row,
         gridTemplateColumns: desktopGridCols,
@@ -492,6 +492,7 @@ export default function LeaderboardPage() {
                         <div title="Unranked wins">UR</div>
                         <div title="Final Four teams">F4</div>
                         <div title="Elite Eight teams">E8</div>
+                        <div title="Sweet Sixteen teams">S16</div>
                         {showPicks && <div>Picks</div>}
                     </div>
 
@@ -583,6 +584,14 @@ export default function LeaderboardPage() {
                                         }}
                                     >
                                         {entry.tiebreak.e8}
+                                    </div>
+                                    <div
+                                        style={{
+                                            textAlign: 'center',
+                                            fontWeight: 900,
+                                        }}
+                                    >
+                                        {entry.tiebreak.s16}
                                     </div>
 
                                     {showPicks ? (
@@ -777,6 +786,12 @@ export default function LeaderboardPage() {
                                         <div style={ui.tbLabel}>E8</div>
                                         <div style={ui.tbValue}>
                                             {entry.tiebreak.e8}
+                                        </div>
+                                    </div>
+                                    <div style={ui.tbChip}>
+                                        <div style={ui.tbLabel}>S16</div>
+                                        <div style={ui.tbValue}>
+                                            {entry.tiebreak.s16}
                                         </div>
                                     </div>
                                 </div>
